@@ -1,16 +1,41 @@
 mkdir /dd_rundata/novaseq/Runs/230831_A00690_H5JKMDRX3_126
 chmod 777 -R /dd_rundata/novaseq/Runs/230831_A00690_H5JKMDRX3_126
 rsync -ahPr --exclude Thumbnail_Images * /dd_rundata/novaseq/Runs/230831_A00690_H5JKMDRX3_126 > /dd_rundata/novaseq/Runs/230831_A00690_H5JKMDRX3_126/copy.log
+rsync -ahPr --exclude Thumbnail_Images * /dd_rundata/novaseq/Runs/230919_A00690_H5WNCDRX3_133 > /dd_rundata/novaseq/Runs/230919_A00690_H5WNCDRX3_133/copy.log
 
 /bin/nice -n 5 bcl2fastq --sample-sheet samplesheet_demux_snoverATAC.csv --use-bases-mask Y*,I*,Y30I10,Y* --no-lane-splitting -o fastqs
 ls /dd_rundata/novaseq/Runs/230831_A00690_H5JKMDRX3_126/fastqs/CRT_snoverATAC/ | xargs -n1 -P90 -I{} sh -c 'cp /dd_rundata/novaseq/Runs/230831_A00690_H5JKMDRX3_126/fastqs/CRT_snoverATAC/{} /home/dmakosa/working_data_02/snoverATAC/data/{}'
+ls /dd_rundata/novaseq/Runs/230919_A00690_H5WNCDRX3_133/fastqs/CRT_snoverATAC/ | xargs -n1 -P90 -I{} sh -c 'cp /dd_rundata/novaseq/Runs/230919_A00690_H5WNCDRX3_133/fastqs/CRT_snoverATAC/{} /home/dmakosa/working_data_02/snoverATAC/data/{}'
+
 ls data | grep _R1_ | sed s,'R1_001.fastq.gz',,g | xargs -n1 -P40 -I{} sh -c '/bin/nice -n 5 mv data/{}R1_001.fastq.gz data/{}L001_R1_001.fastq.gz' &
 ls data | grep _R3_ | sed s,'R3_001.fastq.gz',,g | xargs -n1 -P40 -I{} sh -c '/bin/nice -n 5 mv data/{}R3_001.fastq.gz data/{}L001_R2_001.fastq.gz' &
 conda activate gdepleted
 ls data | grep R2 | grep -v L001 | sed s,'R2_001.fastq.gz',,g | xargs -n1 -P45 -I{} sh -c '/bin/nice -n 5 zcat data/{}R2_001.fastq.gz | fastx_trimmer -l 16 -o data/{}L001_I2_001.fastq.gz -z' &
+
+ls data | grep RL4744 | grep _R1_ | sed s,'R1_001.fastq.gz',,g | xargs -n1 -P40 -I{} sh -c '/bin/nice -n 5 mv data/{}R1_001.fastq.gz data/{}L001_R1_001.fastq.gz' &
+ls data | grep RL4744 | grep _R3_ | sed s,'R3_001.fastq.gz',,g | xargs -n1 -P40 -I{} sh -c '/bin/nice -n 5 mv data/{}R3_001.fastq.gz data/{}L001_R2_001.fastq.gz' &
+conda activate gdepleted
+ls data | grep RL4744 | grep R2 | grep -v L001 | sed s,'R2_001.fastq.gz',,g | xargs -n1 -P45 -I{} sh -c '/bin/nice -n 5 zcat data/{}R2_001.fastq.gz | fastx_trimmer -l 16 -o data/{}L001_I2_001.fastq.gz -z' &
+
 ls data | grep -v L001 | xargs -n1 -P90 -I{} sh -c '/bin/nice -n 5 rm data/{}'
 mkdir output
 ls ../data | sed s,'_S.'*,,g | uniq | xargs -n1 -P19 -I{} sh -c '/bin/nice -n 5 /home/dmakosa/working_data_01/apps/cellranger-atac-2.0.0/cellranger-atac count --id {} --sample {} --reference /home/dmakosa/working_data_01/apps/10x_referencefiles/refdata-cellranger-atac-GRCh38-and-mm10-2020-A-2.0.0 --fastqs ../data --localcores 5'
+
+ls ../data/RL* | grep RL4744 | sed s,'_S.'*,,g | sed s,'../data/',,g | uniq | xargs -n1 -P19 -I{} sh -c '/bin/nice -n 5 /home/dmakosa/working_data_01/apps/cellranger-atac-2.0.0/cellranger-atac count --id {} --sample {} --reference /home/dmakosa/working_data_01/apps/10x_referencefiles/refdata-cellranger-atac-GRCh38-and-mm10-2020-A-2.0.0 --fastqs ../data --localcores 5 --peaks /home/dmakosa/working_data_02/snoverATAC/cellranger2/RL3210_01_dirty_THS_30_shortREV_lowTn5/outs/peaks.bed'
+
+/bin/nice -n 5 cellranger-atac aggr  --id=RL4744 \
+                        --csv=RL4744aggr.csv \
+                        --normalize=none \
+                        --reference=/home/dmakosa/working_data_01/apps/10x_referencefiles/refdata-cellranger-atac-GRCh38-and-mm10-2020-A-2.0.0 \
+                        --localcores=80
+
+
+
+# For preparing the fragment files to transfer to the nimbus account:
+for i in RL4744_*; do cp $i/outs/fragments.tsv.gz ../fragment_files/$i"_fragments.tsv.gz"; done
+mc cp --recursive  fragment_files pawsey0746/pebdata/snoverATAC/fragment_files/
+
+
 
 cat RL4632_*I2_001.fastq.gz > combinedRL4632_S0_L001_I2_001.fastq.gz &
 cat RL4632_*R1_001.fastq.gz > combinedRL4632_S0_L001_R1_001.fastq.gz &
